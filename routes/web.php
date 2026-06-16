@@ -1,10 +1,8 @@
 <?php
 
-use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('services.index');
-});
-
-Route::resource('services', ServiceController::class)->except(['show']);
+Route::get('/', fn () => response()->json([
+    'name' => config('app.name'),
+    'status' => 'ok',
+]));
