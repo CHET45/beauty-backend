@@ -18,6 +18,7 @@ class StoreServiceRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
+            'description' => ['nullable', 'string', 'max:2000'],
             'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
             'is_active' => ['sometimes', 'boolean'],

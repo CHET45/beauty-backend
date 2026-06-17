@@ -15,6 +15,7 @@ class ServiceResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'description' => $this->description,
             'duration_minutes' => $this->duration_minutes,
             'price' => number_format((float) $this->price, 2, '.', ''),
             'is_active' => (bool) $this->is_active,

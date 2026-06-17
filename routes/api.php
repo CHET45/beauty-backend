@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('throttle:public-api')->group(function () {
     Route::get('/services', [ServiceController::class, 'index']);
     Route::get('/available-slots', AvailableSlotController::class);
+    Route::get('/appointments', [AppointmentController::class, 'index']);
 });
 
 Route::post('/appointments', [AppointmentController::class, 'store'])

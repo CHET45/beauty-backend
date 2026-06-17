@@ -16,7 +16,9 @@ class Appointment extends Model
     protected $fillable = [
         'service_id',
         'customer_name',
+        'phone_country_code',
         'customer_phone',
+        'customer_email',
         'starts_at',
         'ends_at',
         'status',

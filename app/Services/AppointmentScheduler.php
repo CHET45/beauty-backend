@@ -19,6 +19,12 @@ class AppointmentScheduler
     private const SLOT_STEP_MINUTES = 30;
 
     /**
+     * A slot can only be booked while at least this many minutes remain
+     * before it starts. Slots inside this window are hidden, not just disabled.
+     */
+    private const MIN_LEAD_TIME_MINUTES = 15;
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public function availableSlots(Service $service, CarbonInterface $date): array
@@ -32,23 +38,29 @@ class AppointmentScheduler
             ->where('ends_at', '>', $workStart)
             ->get(['starts_at', 'ends_at']);
 
+        // Earliest start a customer is still allowed to book. Slots before this
+        // (already passed, or starting too soon) are dropped entirely.
+        $earliestStart = CarbonImmutable::now()->addMinutes(self::MIN_LEAD_TIME_MINUTES);
+
         $slots = [];
         $slotStart = $workStart;
 
         while ($slotStart->addMinutes($service->duration_minutes)->lessThanOrEqualTo($workEnd)) {
             $slotEnd = $slotStart->addMinutes($service->duration_minutes);
 
-            $hasConflict = $appointments->contains(
-                fn (Appointment $appointment): bool => $appointment->starts_at->lessThan($slotEnd)
-                    && $appointment->ends_at->greaterThan($slotStart)
-            );
+            if ($slotStart->greaterThanOrEqualTo($earliestStart)) {
+                $hasConflict = $appointments->contains(
+                    fn (Appointment $appointment): bool => $appointment->starts_at->lessThan($slotEnd)
+                        && $appointment->ends_at->greaterThan($slotStart)
+                );
 
-            $slots[] = [
-                'time' => $slotStart->format('H:i'),
-                'starts_at' => $slotStart->toIso8601String(),
-                'ends_at' => $slotEnd->toIso8601String(),
-                'available' => ! $hasConflict,
-            ];
+                $slots[] = [
+                    'time' => $slotStart->format('H:i'),
+                    'starts_at' => $slotStart->toIso8601String(),
+                    'ends_at' => $slotEnd->toIso8601String(),
+                    'available' => ! $hasConflict,
+                ];
+            }
 
             $slotStart = $slotStart->addMinutes(self::SLOT_STEP_MINUTES);
         }
@@ -57,7 +69,7 @@ class AppointmentScheduler
     }
 
     /**
-     * @param  array{service_id:int,customer_name:string,customer_phone:string,starts_at:string,notes?:string|null}  $payload
+     * @param  array{service_id:int,customer_name:string,phone_country_code:string,customer_phone:string,customer_email?:string|null,starts_at:string,notes?:string|null}  $payload
      */
     public function book(array $payload): Appointment
     {
@@ -101,7 +113,10 @@ class AppointmentScheduler
             return Appointment::create([
                 'service_id' => $service->id,
                 'customer_name' => $payload['customer_name'],
-                'customer_phone' => $payload['customer_phone'],
+                'phone_country_code' => $payload['phone_country_code'],
+                // Store digits only so lookups/filters compare reliably across drivers.
+                'customer_phone' => preg_replace('/\D+/', '', $payload['customer_phone']),
+                'customer_email' => $payload['customer_email'] ?? null,
                 'starts_at' => $startsAt,
                 'ends_at' => $endsAt,
                 'status' => AppointmentStatus::Pending,
@@ -112,9 +127,9 @@ class AppointmentScheduler
 
     private function ensureBookableTime(CarbonImmutable $startsAt, CarbonImmutable $endsAt): void
     {
-        if ($startsAt->isPast()) {
+        if ($startsAt->lessThan(CarbonImmutable::now()->addMinutes(self::MIN_LEAD_TIME_MINUTES))) {
             throw ValidationException::withMessages([
-                'starts_at' => 'Appointment start time must be in the future.',
+                'starts_at' => 'Appointments must be booked at least '.self::MIN_LEAD_TIME_MINUTES.' minutes in advance.',
             ]);
         }
 

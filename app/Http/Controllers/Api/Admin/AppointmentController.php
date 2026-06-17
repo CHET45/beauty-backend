@@ -16,15 +16,49 @@ class AppointmentController extends Controller
     {
         $validated = $request->validated();
 
+        $sort = $validated['sort'] ?? 'starts_at';
+        $direction = $validated['direction'] ?? 'asc';
+
         $appointments = Appointment::query()
             ->with('service')
             ->when(
                 ! empty($validated['date']),
                 fn ($query) => $query->whereDate('starts_at', $validated['date'])
             )
-            ->orderBy('starts_at');
+            ->when(
+                ! empty($validated['date_from']),
+                fn ($query) => $query->whereDate('starts_at', '>=', $validated['date_from'])
+            )
+            ->when(
+                ! empty($validated['date_to']),
+                fn ($query) => $query->whereDate('starts_at', '<=', $validated['date_to'])
+            )
+            ->when(
+                ! empty($validated['status']),
+                fn ($query) => $query->where('status', $validated['status'])
+            )
+            ->when(
+                ! empty($validated['name']),
+                fn ($query) => $query->where('customer_name', 'like', '%'.trim($validated['name']).'%')
+            )
+            ->when(
+                ! empty($validated['service_id']),
+                fn ($query) => $query->where('service_id', $validated['service_id'])
+            )
+            ->when(
+                ! empty($validated['phone']) && preg_replace('/\D+/', '', $validated['phone']) !== '',
+                fn ($query) => $query->where(
+                    'customer_phone',
+                    'like',
+                    '%'.preg_replace('/\D+/', '', $validated['phone']).'%'
+                )
+            )
+            ->orderBy($sort, $direction)
+            // Stable secondary order so equal keys keep a predictable sequence.
+            ->orderBy('starts_at')
+            ->get();
 
-        return AppointmentResource::collection($appointments->get());
+        return AppointmentResource::collection($appointments);
     }
 
     public function updateStatus(UpdateAppointmentStatusRequest $request, Appointment $appointment): JsonResponse

@@ -26,7 +26,9 @@ class AppointmentFactory extends Factory
         return [
             'service_id' => Service::factory(),
             'customer_name' => fake()->name(),
-            'customer_phone' => '+371'.fake()->numerify('########'),
+            'phone_country_code' => '+371',
+            'customer_phone' => fake()->numerify('########'),
+            'customer_email' => fake()->optional()->safeEmail(),
             'starts_at' => $startsAt,
             'ends_at' => $startsAt->addMinutes($duration),
             'status' => AppointmentStatus::Pending,
