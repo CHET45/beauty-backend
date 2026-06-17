@@ -42,7 +42,6 @@ The local `.env` uses SQLite out of the box. For the bundled Docker/MySQL setup 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `POST`   | `/api/admin/login` | Log in, returns a token |
-| `GET`    | `/api/admin/me` | Current admin |
 | `POST`   | `/api/admin/logout` | Revoke the current token |
 | `GET`    | `/api/admin/services` | Full catalog (incl. inactive) |
 | `POST`   | `/api/admin/services` | Create a service |

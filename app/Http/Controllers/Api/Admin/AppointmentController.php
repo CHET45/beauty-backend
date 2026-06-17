@@ -54,7 +54,6 @@ class AppointmentController extends Controller
                 )
             )
             ->orderBy($sort, $direction)
-            // Stable secondary order so equal keys keep a predictable sequence.
             ->orderBy('starts_at')
             ->get();
 

@@ -11,10 +11,7 @@ use App\Services\AppointmentScheduler;
 
 class AppointmentController extends Controller
 {
-    /**
-     * Public lookup: anyone can list the appointments tied to a phone number.
-     * No authentication by design — this is a convenience feature, not protected data.
-     */
+    // Unauthenticated by design: a phone-number lookup convenience, not protected data.
     public function index(LookupAppointmentsRequest $request)
     {
         $validated = $request->validated();

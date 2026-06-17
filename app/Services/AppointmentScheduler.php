@@ -18,10 +18,6 @@ class AppointmentScheduler
 
     private const SLOT_STEP_MINUTES = 30;
 
-    /**
-     * A slot can only be booked while at least this many minutes remain
-     * before it starts. Slots inside this window are hidden, not just disabled.
-     */
     private const MIN_LEAD_TIME_MINUTES = 15;
 
     /**
@@ -38,8 +34,6 @@ class AppointmentScheduler
             ->where('ends_at', '>', $workStart)
             ->get(['starts_at', 'ends_at']);
 
-        // Earliest start a customer is still allowed to book. Slots before this
-        // (already passed, or starting too soon) are dropped entirely.
         $earliestStart = CarbonImmutable::now()->addMinutes(self::MIN_LEAD_TIME_MINUTES);
 
         $slots = [];
