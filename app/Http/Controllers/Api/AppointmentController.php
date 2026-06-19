@@ -18,7 +18,7 @@ class AppointmentController extends Controller
         $localDigits = preg_replace('/\D+/', '', $validated['phone']);
 
         $appointments = Appointment::query()
-            ->with('service')
+            ->with(['service', 'specialist'])
             ->where('customer_phone', $localDigits)
             ->when(
                 ! empty($validated['phone_country_code']),

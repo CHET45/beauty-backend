@@ -16,6 +16,7 @@ class Appointment extends Model
 
     protected $fillable = [
         'service_id',
+        'specialist_id',
         'customer_name',
         'phone_country_code',
         'customer_phone',
@@ -38,6 +39,11 @@ class Appointment extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function specialist(): BelongsTo
+    {
+        return $this->belongsTo(Specialist::class);
     }
 
     public function scopeNotCancelled(Builder $query): Builder

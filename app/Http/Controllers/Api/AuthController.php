@@ -37,6 +37,11 @@ class AuthController extends Controller
         ]);
     }
 
+    public function me(Request $request)
+    {
+        return new UserResource($request->user());
+    }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()?->delete();

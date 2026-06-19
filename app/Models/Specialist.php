@@ -2,23 +2,24 @@
 
 namespace App\Models;
 
-use Database\Factories\ServiceFactory;
+use Database\Factories\SpecialistFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Service extends Model
+class Specialist extends Model
 {
-    /** @use HasFactory<ServiceFactory> */
+    /** @use HasFactory<SpecialistFactory> */
     use HasFactory;
 
     protected $fillable = [
         'name',
-        'description',
-        'duration_minutes',
-        'price',
+        'title',
+        'phone',
+        'bio',
+        'photo_url',
         'is_active',
     ];
 
@@ -26,18 +27,17 @@ class Service extends Model
     {
         return [
             'is_active' => 'boolean',
-            'price' => 'decimal:2',
         ];
+    }
+
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class);
     }
 
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
-    }
-
-    public function specialists(): BelongsToMany
-    {
-        return $this->belongsToMany(Specialist::class);
     }
 
     public function scopeActive(Builder $query): Builder

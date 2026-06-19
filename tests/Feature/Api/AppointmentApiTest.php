@@ -27,13 +27,13 @@ class AppointmentApiTest extends TestCase
             'service_id' => $service->id,
             'customer_name' => 'Anna',
             'phone_country_code' => '+371',
-            'customer_phone' => '11111111',
+            'customer_phone' => '20123456',
             'starts_at' => $startsAt->toIso8601String(),
         ])
             ->assertCreated()
             ->assertJsonPath('data.service_id', $service->id)
             ->assertJsonPath('data.phone_country_code', '+371')
-            ->assertJsonPath('data.customer_phone', '11111111')
+            ->assertJsonPath('data.customer_phone', '20123456')
             ->assertJsonPath('data.status', 'pending');
     }
 
@@ -46,7 +46,7 @@ class AppointmentApiTest extends TestCase
             'service_id' => $service->id,
             'customer_name' => 'Anna',
             'phone_country_code' => '+371',
-            'customer_phone' => '11111111',
+            'customer_phone' => '20123456',
             'starts_at' => $startsAt->toIso8601String(),
         ];
 
@@ -55,7 +55,7 @@ class AppointmentApiTest extends TestCase
         $this->postJson('/api/appointments', [
             ...$payload,
             'customer_name' => 'Maria',
-            'customer_phone' => '22222222',
+            'customer_phone' => '20987654',
         ])->assertUnprocessable();
     }
 
@@ -68,7 +68,7 @@ class AppointmentApiTest extends TestCase
             'service_id' => $service->id,
             'customer_name' => 'Anna',
             'phone_country_code' => '+371',
-            'customer_phone' => '11111111',
+            'customer_phone' => '20123456',
             'customer_email' => 'anna@example.com',
             'starts_at' => $startsAt->toIso8601String(),
             'notes' => 'Please call before.',
@@ -85,11 +85,28 @@ class AppointmentApiTest extends TestCase
         $this->postJson('/api/appointments', [
             'service_id' => $service->id,
             'customer_name' => 'Anna',
-            'customer_phone' => '11111111',
+            'customer_phone' => '20123456',
             'starts_at' => CarbonImmutable::tomorrow()->setTime(10, 0)->toIso8601String(),
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('phone_country_code');
+    }
+
+    public function test_booking_rejects_placeholder_phone_numbers(): void
+    {
+        $service = Service::factory()->create(['duration_minutes' => 60]);
+
+        foreach (['00000000', '11111111', '20 000 000', '12345678', '87654321'] as $phone) {
+            $this->postJson('/api/appointments', [
+                'service_id' => $service->id,
+                'customer_name' => 'Anna',
+                'phone_country_code' => '+371',
+                'customer_phone' => $phone,
+                'starts_at' => CarbonImmutable::tomorrow()->setTime(10, 0)->toIso8601String(),
+            ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrorFor('customer_phone');
+        }
     }
 
     public function test_customer_can_look_up_their_appointments_by_phone(): void
@@ -100,7 +117,7 @@ class AppointmentApiTest extends TestCase
             'service_id' => $service->id,
             'customer_name' => 'Anna',
             'phone_country_code' => '+371',
-            'customer_phone' => '11111111',
+            'customer_phone' => '20123456',
             'starts_at' => CarbonImmutable::tomorrow()->setTime(10, 0)->toIso8601String(),
         ])->assertCreated();
 
@@ -108,22 +125,32 @@ class AppointmentApiTest extends TestCase
             'service_id' => $service->id,
             'customer_name' => 'Someone Else',
             'phone_country_code' => '+371',
-            'customer_phone' => '99999999',
+            'customer_phone' => '22198765',
             'starts_at' => CarbonImmutable::tomorrow()->setTime(12, 0)->toIso8601String(),
         ])->assertCreated();
 
         $this->getJson('/api/appointments?'.http_build_query([
-            'phone' => '11111111',
+            'phone' => '20123456',
             'phone_country_code' => '+371',
         ]))
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.customer_phone', '11111111');
+            ->assertJsonPath('data.0.customer_phone', '20123456');
     }
 
     public function test_appointment_lookup_requires_a_phone(): void
     {
         $this->getJson('/api/appointments')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('phone');
+    }
+
+    public function test_appointment_lookup_rejects_placeholder_phone_numbers(): void
+    {
+        $this->getJson('/api/appointments?'.http_build_query([
+            'phone' => '00000000',
+            'phone_country_code' => '+371',
+        ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('phone');
     }
@@ -137,7 +164,7 @@ class AppointmentApiTest extends TestCase
             'service_id' => $service->id,
             'customer_name' => 'Anna',
             'phone_country_code' => '+371',
-            'customer_phone' => '11111111',
+            'customer_phone' => '20123456',
             'starts_at' => $startsAt->toIso8601String(),
         ])->assertCreated();
 
@@ -179,8 +206,24 @@ class AppointmentApiTest extends TestCase
             'service_id' => $service->id,
             'customer_name' => 'Anna',
             'phone_country_code' => '+371',
-            'customer_phone' => '11111111',
+            'customer_phone' => '20123456',
             'starts_at' => CarbonImmutable::today()->setTime(10, 0)->toIso8601String(),
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('starts_at');
+    }
+
+    public function test_customer_cannot_book_in_the_past(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::today()->setTime(12, 0));
+        $service = Service::factory()->create(['duration_minutes' => 60]);
+
+        $this->postJson('/api/appointments', [
+            'service_id' => $service->id,
+            'customer_name' => 'Anna',
+            'phone_country_code' => '+371',
+            'customer_phone' => '20123456',
+            'starts_at' => CarbonImmutable::yesterday()->setTime(10, 0)->toIso8601String(),
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('starts_at');

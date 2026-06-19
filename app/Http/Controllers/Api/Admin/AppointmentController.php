@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\ListAppointmentsRequest;
+use App\Http\Requests\Admin\UpdateAppointmentRequest;
 use App\Http\Requests\Admin\UpdateAppointmentStatusRequest;
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
@@ -12,49 +12,13 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AppointmentController extends Controller
 {
-    public function index(ListAppointmentsRequest $request)
+    // Returns every appointment; filtering and sorting are handled client-side
+    // in the admin app so they apply instantly without round-tripping the API.
+    public function index()
     {
-        $validated = $request->validated();
-
-        $sort = $validated['sort'] ?? 'starts_at';
-        $direction = $validated['direction'] ?? 'asc';
-
         $appointments = Appointment::query()
-            ->with('service')
-            ->when(
-                ! empty($validated['date']),
-                fn ($query) => $query->whereDate('starts_at', $validated['date'])
-            )
-            ->when(
-                ! empty($validated['date_from']),
-                fn ($query) => $query->whereDate('starts_at', '>=', $validated['date_from'])
-            )
-            ->when(
-                ! empty($validated['date_to']),
-                fn ($query) => $query->whereDate('starts_at', '<=', $validated['date_to'])
-            )
-            ->when(
-                ! empty($validated['status']),
-                fn ($query) => $query->where('status', $validated['status'])
-            )
-            ->when(
-                ! empty($validated['name']),
-                fn ($query) => $query->where('customer_name', 'like', '%'.trim($validated['name']).'%')
-            )
-            ->when(
-                ! empty($validated['service_id']),
-                fn ($query) => $query->where('service_id', $validated['service_id'])
-            )
-            ->when(
-                ! empty($validated['phone']) && preg_replace('/\D+/', '', $validated['phone']) !== '',
-                fn ($query) => $query->where(
-                    'customer_phone',
-                    'like',
-                    '%'.preg_replace('/\D+/', '', $validated['phone']).'%'
-                )
-            )
-            ->orderBy($sort, $direction)
-            ->orderBy('starts_at')
+            ->with(['service', 'specialist'])
+            ->orderByDesc('starts_at')
             ->get();
 
         return AppointmentResource::collection($appointments);
@@ -68,10 +32,26 @@ class AppointmentController extends Controller
             'status' => $validated['status'],
         ]);
 
-        $appointment->load('service');
+        $appointment->load(['service', 'specialist']);
 
         return response()->json([
             'message' => 'Appointment status updated.',
+            'data' => new AppointmentResource($appointment),
+        ]);
+    }
+
+    // Assign or change the specialist on a booking. Admins can choose an active
+    // specialist outside the normal service list as an explicit exception.
+    public function update(UpdateAppointmentRequest $request, Appointment $appointment): JsonResponse
+    {
+        $appointment->update([
+            'specialist_id' => $request->validated()['specialist_id'],
+        ]);
+
+        $appointment->load(['service', 'specialist']);
+
+        return response()->json([
+            'message' => 'Appointment updated.',
             'data' => new AppointmentResource($appointment),
         ]);
     }

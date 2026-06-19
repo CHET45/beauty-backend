@@ -27,7 +27,7 @@ class AppointmentFactory extends Factory
             'service_id' => Service::factory(),
             'customer_name' => fake()->name(),
             'phone_country_code' => '+371',
-            'customer_phone' => fake()->numerify('########'),
+            'customer_phone' => (string) fake()->unique()->numberBetween(20100000, 29999999),
             'customer_email' => fake()->optional()->safeEmail(),
             'starts_at' => $startsAt,
             'ends_at' => $startsAt->addMinutes($duration),

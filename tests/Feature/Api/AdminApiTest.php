@@ -39,8 +39,10 @@ class AdminApiTest extends TestCase
             ->assertJsonPath('data.is_active', false);
     }
 
-    public function test_admin_can_filter_and_sort_appointments(): void
+    public function test_admin_appointments_returns_all_with_service(): void
     {
+        // Filtering and sorting now live in the admin app; the API just returns
+        // the full list (newest first) with the service relation loaded.
         Sanctum::actingAs(User::factory()->admin()->create(), ['admin']);
 
         $haircut = Service::factory()->create(['name' => 'Haircut']);
@@ -57,28 +59,34 @@ class AdminApiTest extends TestCase
             'ends_at' => CarbonImmutable::tomorrow()->setTime(15, 0),
         ]);
 
-        // Filter by customer name.
-        $this->getJson('/api/admin/appointments?'.http_build_query(['name' => 'anna']))
+        $this->getJson('/api/admin/appointments')
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.customer_name', 'Anna Berzina');
+            ->assertJsonCount(2, 'data')
+            // Newest first by start time.
+            ->assertJsonPath('data.0.customer_name', 'Zane Kalnina')
+            ->assertJsonPath('data.1.customer_name', 'Anna Berzina')
+            ->assertJsonPath('data.0.service.name', 'Manicure');
+    }
 
-        // Filter by service.
-        $this->getJson('/api/admin/appointments?'.http_build_query(['service_id' => $manicure->id]))
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.customer_name', 'Zane Kalnina');
+    public function test_admin_can_fetch_own_profile(): void
+    {
+        $admin = User::factory()->admin()->create([
+            'name' => 'Salon Owner',
+            'email' => 'owner@example.com',
+        ]);
+        Sanctum::actingAs($admin, ['admin']);
 
-        // Sort by name A–Z.
-        $this->getJson('/api/admin/appointments?'.http_build_query(['sort' => 'customer_name', 'direction' => 'asc']))
+        $this->getJson('/api/admin/me')
             ->assertOk()
-            ->assertJsonPath('data.0.customer_name', 'Anna Berzina')
-            ->assertJsonPath('data.1.customer_name', 'Zane Kalnina');
+            ->assertJsonPath('data.name', 'Salon Owner')
+            ->assertJsonPath('data.email', 'owner@example.com')
+            ->assertJsonPath('data.is_admin', true);
+    }
 
-        // Sort latest first.
-        $this->getJson('/api/admin/appointments?'.http_build_query(['sort' => 'starts_at', 'direction' => 'desc']))
-            ->assertOk()
-            ->assertJsonPath('data.0.customer_name', 'Zane Kalnina');
+    public function test_me_requires_authentication(): void
+    {
+        $this->getJson('/api/admin/me')
+            ->assertUnauthorized();
     }
 
     public function test_non_admin_user_cannot_access_admin_routes(): void
@@ -96,7 +104,8 @@ class AdminApiTest extends TestCase
         $service = Service::factory()->create();
         $service->appointments()->create([
             'customer_name' => 'Client',
-            'customer_phone' => '+37111111111',
+            'phone_country_code' => '+371',
+            'customer_phone' => '20123456',
             'starts_at' => now()->addDay()->setTime(10, 0),
             'ends_at' => now()->addDay()->setTime(11, 0),
             'status' => 'pending',

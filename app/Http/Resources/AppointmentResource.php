@@ -20,6 +20,7 @@ class AppointmentResource extends JsonResource
         return [
             'id' => $this->id,
             'service_id' => $this->service_id,
+            'specialist_id' => $this->specialist_id,
             'customer_name' => $this->customer_name,
             'phone_country_code' => $this->phone_country_code,
             'customer_phone' => $this->customer_phone,
@@ -29,6 +30,7 @@ class AppointmentResource extends JsonResource
             'status' => $status,
             'notes' => $this->notes,
             'service' => new ServiceResource($this->whenLoaded('service')),
+            'specialist' => new SpecialistResource($this->whenLoaded('specialist')),
         ];
     }
 }
